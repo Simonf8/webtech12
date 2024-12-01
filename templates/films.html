@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Film List</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        img {
+            width: 100px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-content {
+            margin: auto;
+            width: 80%;
+            max-width: 800px;
+            height: 0;
+            position: relative;
+            padding-top: 20%; /* 16:9 aspect ratio */
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            top: 0;
+            right: 0;
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+    </style>
+    
+</head>
+<body background="/static/background2.jpg">
+
+    <a href="{{ url_for('base') }}">Homepagina</a>
+
+
+    <table id="filmsTable">
+        <tr>
+            <th>Poster</th>
+            <th>Title</th>
+            <th>Director</th>
+            <th>Release Year</th>
+            <th>Trailer</th>
+            <th>Cast</th>
+        </tr>
+    </table>
+
+    <!-- Trailer modal -->
+    <div id="trailerModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <iframe id="trailerIframe" width="560" height="315" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        </div>
+    </div>
+    <!-- Add/Edit film details form -->
+<div id="addEditForm">
+    <h2>Add/Edit Film Details</h2>
+    <form id="filmForm">
+        <label for="filmTitle">Title:</label>
+        <input type="text" id="filmTitle" name="filmTitle" required>
+        
+        <label for="filmDirector">Director:</label>
+        <input type="text" id="filmDirector" name="filmDirector">
+        
+        <label for="filmReleaseYear">Release Year:</label>
+        <input type="number" id="filmReleaseYear" name="filmReleaseYear">
+        
+        <label for="filmTrailerUrl">Trailer URL:</label>
+        <input type="url" id="filmTrailerUrl" name="filmTrailerUrl">
+        
+        <label for="filmPosterUrl">Poster URL:</label>
+        <input type="url" id="filmPosterUrl" name="filmPosterUrl">
+        
+        <label for="filmCast">Cast (comma-separated):</label>
+        <input type="text" id="filmCast" name="filmCast">
+        
+        <label for="filmNotes">Notes:</label>
+        <textarea id="filmNotes" name="filmNotes"></textarea>
+        
+        <button type="submit">Submit</button>
+    </form>
+</div>
+
+
+    <script>
+        const apiKey = '561b14c296cb3b8afba009550467b273';
+        const url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}`;
+
+        // Trailer modal
+        const trailerModal = document.getElementById('trailerModal');
+        const closeButton = document.getElementsByClassName('close')[0];
+        const trailerIframe = document.getElementById('trailerIframe');
+
+        // Close the modal
+        closeButton.onclick = () => {
+            trailerModal.style.display = 'none';
+            trailerIframe.src = ''; // Stop the video
+        };
+
+        const filmForm = document.getElementById('filmForm');
+
+        filmForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            const filmTitle = document.getElementById('filmTitle').value;
+            const filmDirector = document.getElementById('filmDirector').value;
+            const filmReleaseYear = document.getElementById('filmReleaseYear').value;
+            const filmTrId = generateId(filmTitle);
+            const filmTrailerUrl = document.getElementById('filmTrailerUrl').value;
+            const filmPosterUrl = document.getElementById('filmPosterUrl').value;
+            const filmCast = document.getElementById('filmCast').value;
+            const filmNotes = document.getElementById('filmNotes').value;
+
+    
+        saveFilmDataToServer({
+            id: filmTrId,
+            title: filmTitle,
+            director: filmDirector,
+            releaseYear: filmReleaseYear,
+            trailerUrl: filmTrailerUrl,
+            posterUrl: filmPosterUrl,
+            cast: filmCast,
+            notes: filmNotes
+        });
+    });
+    const submitButton = document.querySelector('#filmForm button[type="submit"]');
+    submitButton.addEventListener('click', addFilm);
+
+
+    function addFilm(event) {
+    event.preventDefault();
+
+    // Retrieve form data
+    const filmTitle = document.getElementById('filmTitle').value;
+    const filmDirector = document.getElementById('filmDirector').value;
+    const filmReleaseYear = document.getElementById('filmReleaseYear').value;
+    const filmTrId = generateId(filmTitle);
+    const filmTrailerUrl = document.getElementById('filmTrailerUrl').value;
+    const filmPosterUrl = document.getElementById('filmPosterUrl').value;
+    const filmCast = document.getElementById('filmCast').value;
+    const filmNotes = document.getElementById('filmNotes').value;
+
+    // Create new table row
+    const filmsTable = document.getElementById('filmsTable');
+    const newRow = `
+        <tr data-id="${filmTrId}">
+            <td><img src="${filmPosterUrl}" alt="${filmTitle}"></td>
+            <td>${filmTitle}</td>
+            <td>${filmDirector}</td>
+            <td>${filmReleaseYear}</td>
+            <td><a href="${filmTrailerUrl}" onclick="showTrailer('${filmTrailerUrl}'); return false;">Trailer</a></td>
+            <td>${filmCast}</td>
+        </tr>
+    `;
+    filmsTable.insertAdjacentHTML('beforeend', newRow);
+
+    // Clear form fields
+    document.getElementById('filmTitle').value = '';
+    document.getElementById('filmDirector').value = '';
+    document.getElementById('filmReleaseYear').value = '';
+    document.getElementById('filmTrailerUrl').value = '';
+    document.getElementById('filmPosterUrl').value = '';
+    document.getElementById('filmCast').value = '';
+    document.getElementById('filmNotes').value = '';
+}
+ 
+
+
+        // Open the modal and load the video
+        const showTrailer = (trailerUrl) => {
+            trailerModal.style.display = 'block';
+            trailerIframe.src = trailerUrl;
+        };
+
+        const totalPages = 6; // Increase this number to fetch more pages
+
+        const fetchMovies = async (page) => {
+            const currentPageUrl = `${url}&page=${page}`;
+
+            const response = await fetch(currentPageUrl);
+            const data = await response.json();
+
+            return data.results;
+        };
+
+        (async () => {
+            const movies = [];
+
+            for (let page = 1; page <= totalPages; page++) {
+                const moviesPage = await fetchMovies(page);
+                movies.push(...moviesPage);
+            }
+
+            const filmsTable = document.getElementById('filmsTable');
+
+            movies.forEach(movie => {
+                const title = movie.title;
+                const releaseYear = movie.release_date.substring(0, 4);
+                const posterUrl = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+
+                const movieId = movie.id;
+                const movieDetailsUrl = `https://api.themoviedb.org/3/movie/${movieId}?api_key=${apiKey}&append_to_response=credits,videos`;
+
+                fetch(movieDetailsUrl)
+                    .then(response => response.json())
+                    .then(movieDetailsData => {
+                        let directorName = 'Unknown';
+                        for (const crewMember of movieDetailsData.credits.crew) {
+                            if (crewMember.job === 'Director') {
+                                directorName = crewMember.name;
+                                break;
+                            }
+                        }
+
+                        let trailerKey = null;
+                        for (const video of movieDetailsData.videos.results) {
+                            if (video.site === 'YouTube' && video.type === 'Trailer') {
+                                trailerKey = video.key;
+                                break;
+                            }
+                        }
+                        const trailerUrl = trailerKey ? `https://www.youtube.com/embed/${trailerKey}` : '#';
+
+                        let cast = movieDetailsData.credits.cast.slice(0, 5).map(actor => actor.name).join(', ');
+
+                        const row = `
+                            <tr>
+                                <td><img src="${posterUrl}" alt="${title}"></td>
+                                <td>${title}</td>
+                                <td>${directorName}</td>
+                                <td>${releaseYear}</td>
+                                <td><a href="${trailerUrl}" onclick="showTrailer('${trailerUrl}'); return false;">Trailer</a></td>
+                                <td>${cast}</td>
+                            </tr>
+                        `;
+                        filmsTable.innerHTML += row;
+                    });
+            });
+        })();
+    </script>
+</body>
+</html>
+ 

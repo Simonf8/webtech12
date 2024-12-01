@@ -1,0 +1,56 @@
+nefff{% extends 'base.html' %}
+
+{% block content %}
+    <h2>Actors</h2>
+    <div id="actorsList"></div>
+
+    <script>
+        const apiKey = '561b14c296cb3b8afba009550467b273';
+        const url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}`;
+
+        const totalPages = 6;
+
+        const fetchMovies = async (page) => {
+            const currentPageUrl = `${url}&page=${page}`;
+
+            const response = await fetch(currentPageUrl);
+            const data = await response.json();
+
+            return data.results;
+        };
+        
+        (async () => {
+            const movies = [];
+
+            for (let page = 1; page <= totalPages; page++) {
+                const moviesPage = await fetchMovies(page);
+                movies.push(...moviesPage);
+            }
+
+            const actorsList = document.getElementById('actorsList');
+
+            movies.forEach(movie => {
+                const title = movie.title;
+                const posterUrl = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+
+                const movieId = movie.id;
+                const movieDetailsUrl = `https://api.themoviedb.org/3/movie/${movieId}?api_key=${apiKey}&append_to_response=credits,videos`;
+
+                fetch(movieDetailsUrl)
+                    .then(response => response.json())
+                    .then(movieDetailsData => {
+                        const actors = movieDetailsData.credits.cast.slice(0, 5).map(actor => actor.name).join(', ');
+
+                        const actorsBlock = `
+                            <div class="actor-block">
+                                <img src="${posterUrl}" alt="${title}" style="width: 100px;">
+                                <h3>${title}</h3>
+                                <p>Actors: ${actors}</p>
+                            </div>
+                        `;
+                        actorsList.innerHTML += actorsBlock;
+                    });
+            });
+        })();
+    </script>
+{% endblock %}
